@@ -70,6 +70,14 @@ cd /usr/local/bin
 sudo cat <<EOF > startup_script.sh
 #!/bin/bash
 
+# Remove after the initial boot
+if [ -e "/etc/systemd/system/master-init.service" ]; then
+  sudo systemctl disable master-init.service
+  /bin/rm /etc/systemd/system/multi-user.target.wants/master-init.service
+  /bin/rm /etc/systemd/system/master-init.service
+  /bin/rm /master-init.sh
+fi
+
 HOSTNAME=$(hostname)
 
 sudo kubeadm init --control-plane-endpoint $HOSTNAME:6443 --pod-network-cidr=10.0.2.0/24 --token $CLUSTER_TOKEN --token-ttl 0
