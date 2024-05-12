@@ -98,3 +98,5 @@ Environment=CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 [Install]
 WantedBy=multi-user.target
 EOF
+
+sudo systemctl enable startup_script.service
