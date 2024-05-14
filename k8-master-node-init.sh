@@ -16,7 +16,7 @@ curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --
 sudo apt-get update
 sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
-sudo systemctl enable docker.service
+sudo systemctl enable docker.service # ln -s /../ /../
 
 # Add the hosts entry (All hosts)
 sudo cp /etc/hosts /etc/hosts.backup
@@ -44,8 +44,8 @@ sha256sum /etc/kubernetes/pki/ca.crt | awk '{print $1}' >| /mnt/shared/kube-ca-h
 # Set the kubectl context auth to connect to the cluster(Only on Master node)
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
+sudo chown $(id -u):$(id -g) $HOME/.kube/config # kubectl will find the apiserver ip address in this file
+cat $HOME/.kube/config >| /mnt/shared/kubeconfig
 
 
 # Configure the Pod Network Plugin (Calico)
@@ -99,4 +99,4 @@ Environment=CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 WantedBy=multi-user.target
 EOF
 
-sudo systemctl enable startup_script.service
+sudo systemctl enable startup_script.service # ln -s /../ /../
