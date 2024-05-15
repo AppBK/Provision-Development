@@ -96,6 +96,9 @@ kubeadm_pid=$!
 wait $kubeadm_pid
 
 kubectl apply -f /calico.yaml --
+
+sha256sum /etc/kubernetes/pki/ca.crt | awk '{print $1}' >| /mnt/shared/kube-ca-hash.txt
+sudo touch /mnt/shared/master-node-config-complete
 EOF
 
 # Register startup script with systemd
@@ -116,3 +119,4 @@ EOF
 sudo systemctl enable startup_script.service # ln -s /../ /../
 
 # Write to a file in the shared folder to indicate that the master node is finished being configured.
+touch /mnt/shared/master-node-init-complete
