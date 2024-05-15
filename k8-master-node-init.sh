@@ -2,8 +2,9 @@
 
 # K8 Master Node Setup Script
 HOSTNAME=$(hostname)
-HOSTONLY_IP_ADDRESS=$(ip addr show 0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
 CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
 
@@ -38,7 +39,7 @@ sudo sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fsta
 
 
 # Initialize the master node
-sudo kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=10.0.2.0/24 --token $CLUSTER_TOKEN --token-ttl 0 &
+sudo kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
 
 kubeadm_pid=$!
 
@@ -78,14 +79,16 @@ sudo cat <<EOF > startup_script.sh
 # Remove after the initial boot
 if [ -e "/etc/systemd/system/master-init.service" ]; then
   sudo systemctl disable master-init.service
-  /bin/rm /etc/systemd/system/multi-user.target.wants/master-init.service
-  /bin/rm /etc/systemd/system/master-init.service
-  /bin/rm /master-init.sh
+  sudo /bin/rm /etc/systemd/system/multi-user.target.wants/master-init.service
+  sudo /bin/rm /etc/systemd/system/master-init.service
+  sudo /bin/rm /master-init.sh
 fi
 
-HOSTNAME=$(hostname)
+HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
 
-sudo kubeadm init --control-plane-endpoint $HOSTNAME:6443 --pod-network-cidr=10.0.2.0/24 --token $CLUSTER_TOKEN --token-ttl 0 &
+sudo kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
 
 kubeadm_pid=$!
 
@@ -109,3 +112,7 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl enable startup_script.service # ln -s /../ /../
+sudo systemctl disable master-init.service
+sudo /bin/rm /etc/systemd/system/multi-user.target.wants/master-init.service
+sudo /bin/rm /etc/systemd/system/master-init.service
+sudo /bin/rm /master-init.sh
