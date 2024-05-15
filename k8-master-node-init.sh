@@ -52,19 +52,19 @@ sha256sum /etc/kubernetes/pki/ca.crt | awk '{print $1}' >| /mnt/shared/kube-ca-h
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config # kubectl will find the apiserver ip address in this file
-cat $HOME/.kube/config >| /mnt/shared/kubeconfig
+cat /etc/kubernetes/admin.conf >| /mnt/shared/kubeconfig
 
 
 # Configure the Pod Network Plugin (Calico)
 curl https://raw.githubusercontent.com/projectcalico/calico/v3.27.3/manifests/calico.yaml -O
 
 # Add our custom CIDR Pod Network to the Calico manifest
-sed -i '/^[[:space:]]*# - name: CALICO_IPV4POOL_CIDR/ {
+sed -i "/^[[:space:]]*# - name: CALICO_IPV4POOL_CIDR/ {
     a\
             - name: CALICO_IPV4POOL_CIDR
     a\
-              value: "10.0.2.0/24"
-}' calico.yaml
+              value: \"${POD_CIDR}\"
+}" calico.yaml
 
 # Add the token to the environment (find it odd that we re-declare in the systemd script... do we actually need this?)
 sudo cat <<EOF > /etc/profile.d/kube_env.sh
@@ -93,7 +93,7 @@ sudo kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-netwo
 
 kubeadm_pid=$!
 
-wait &kubeadm_pid
+wait $kubeadm_pid
 
 kubectl apply -f /calico.yaml --
 EOF
@@ -104,6 +104,7 @@ sudo cat <<EOF > /etc/systemd/system/startup_script.service
 Description=Startup Script
 
 [Service]
+User=vagrant
 Type=oneshot
 ExecStart=/usr/local/bin/startup_script.sh
 Environment=CLUSTER_TOKEN=5998f2.95926d993a5f99cc
@@ -113,3 +114,5 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl enable startup_script.service # ln -s /../ /../
+
+# Write to a file in the shared folder to indicate that the master node is finished being configured.
