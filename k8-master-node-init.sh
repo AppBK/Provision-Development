@@ -107,7 +107,6 @@ sudo cat <<EOF > /etc/systemd/system/startup_script.service
 Description=Startup Script
 
 [Service]
-User=vagrant
 Type=oneshot
 ExecStart=/usr/local/bin/startup_script.sh
 Environment=CLUSTER_TOKEN=5998f2.95926d993a5f99cc
