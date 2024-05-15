@@ -2,7 +2,8 @@
 
 # K8 Master Node Setup Script
 HOSTNAME=$(hostname)
-POD_NET_IP_ADDRESS=$(ip -4 addr show | grep -oP 'inet \K10\.0\.2\.\d+')
+HOSTONLY_IP_ADDRESS=$(ip addr show 0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
 
@@ -16,12 +17,12 @@ curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --
 sudo apt-get update
 sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
-sudo systemctl enable docker.service
+sudo systemctl enable docker.service # ln -s /../ /../
 
 # Add the hosts entry (All hosts)
 sudo cp /etc/hosts /etc/hosts.backup
 sudo sed -i "/$HOSTNAME/d" /etc/hosts
-sudo echo "$POD_NET_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+sudo echo "$HOSTONLY_IP_ADDRESS $HOSTNAME" >> /etc/hosts
 
 # Disable SWAP (All hosts)
 sudo swapoff -a # Turn it off
@@ -37,15 +38,19 @@ sudo sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fsta
 
 
 # Initialize the master node
-sudo kubeadm init --control-plane-endpoint $HOSTNAME:6443 --pod-network-cidr=10.0.2.0/24 --token $CLUSTER_TOKEN --token-ttl 0
+sudo kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=10.0.2.0/24 --token $CLUSTER_TOKEN --token-ttl 0 &
+
+kubeadm_pid=$!
+
+wait $kubeadm_pid
 
 sha256sum /etc/kubernetes/pki/ca.crt | awk '{print $1}' >| /mnt/shared/kube-ca-hash.txt
 
 # Set the kubectl context auth to connect to the cluster(Only on Master node)
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
+sudo chown $(id -u):$(id -g) $HOME/.kube/config # kubectl will find the apiserver ip address in this file
+cat $HOME/.kube/config >| /mnt/shared/kubeconfig
 
 
 # Configure the Pod Network Plugin (Calico)
@@ -80,7 +85,11 @@ fi
 
 HOSTNAME=$(hostname)
 
-sudo kubeadm init --control-plane-endpoint $HOSTNAME:6443 --pod-network-cidr=10.0.2.0/24 --token $CLUSTER_TOKEN --token-ttl 0
+sudo kubeadm init --control-plane-endpoint $HOSTNAME:6443 --pod-network-cidr=10.0.2.0/24 --token $CLUSTER_TOKEN --token-ttl 0 &
+
+kubeadm_pid=$!
+
+wait &kubeadm_pid
 
 kubectl apply -f /calico.yaml --
 EOF
@@ -99,4 +108,4 @@ Environment=CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 WantedBy=multi-user.target
 EOF
 
-sudo systemctl enable startup_script.service
+sudo systemctl enable startup_script.service # ln -s /../ /../
