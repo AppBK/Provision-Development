@@ -42,6 +42,7 @@ sudo sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fsta
 sudo kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
 
 kubeadm_pid=$!
+echo "KUBEADM PID: ${kubeadm_pid}"
 
 wait $kubeadm_pid
 
@@ -112,7 +113,3 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl enable startup_script.service # ln -s /../ /../
-sudo systemctl disable master-init.service
-sudo /bin/rm /etc/systemd/system/multi-user.target.wants/master-init.service
-sudo /bin/rm /etc/systemd/system/master-init.service
-sudo /bin/rm /master-init.sh
