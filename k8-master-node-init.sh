@@ -7,12 +7,13 @@ POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1
 POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
 CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
+
 apt-get update
 apt-get install -y docker.io
-curl -s https://packages.cloud.google.com/apkueadmikubeadmiiiot/doc/apt-key.gpg | sudo apt-key add -
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+curl -s https://packages.cloud.google.com/apkueadmikubeadmiiiot/doc/apt-key.gpg | apt-key add -
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
 mkdir -p /etc/apt/keyrings
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
 apt-get update
 apt-get install -y kubelet kubeadm kubectl
@@ -22,7 +23,7 @@ systemctl enable docker.service # ln -s /../ /../
 # Add the hosts entry (All hosts)
 cp /etc/hosts /etc/hosts.backup
 sed -i "/$HOSTNAME/d" /etc/hosts
-udo echo "$POD_NET_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+echo "$HOSTONLY_IP_ADDRESS $HOSTNAME" >> /etc/hosts
 
 # Disable SWAP (All hosts)
 swapoff -a # Turn it off
@@ -40,8 +41,7 @@ sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 echo ${POD_NET_IP_ADDRESS} >| /mnt/shared/master-ip
 
 # Initialize the master node
-#sudo kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
-kubeadm init --control-plane-endpoint $HOSTNAME:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
+kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
 
 kubeadm_pid=$!
 echo "KUBEADM PID: ${kubeadm_pid}"
@@ -76,22 +76,22 @@ EOF
 # Create the startup script.
 cd /usr/local/bin
 
-cat <<EOF > startup_script.sh
+sudo cat <<EOF > startup_script.sh
 #!/bin/bash
 
 # Remove after the initial boot
 if [ -e "/etc/systemd/system/master-init.service" ]; then
-    systemctl disable master-init.service
-    /bin/rm /etc/systemd/system/multi-user.target.wants/master-init.service
-    /bin/rm /etc/systemd/system/master-init.service
-    /bin/rm /master-init.sh
+  sudo systemctl disable master-init.service
+  sudo /bin/rm /etc/systemd/system/multi-user.target.wants/master-init.service
+  sudo /bin/rm /etc/systemd/system/master-init.service
+  sudo /bin/rm /master-init.sh
 fi
 
 HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_NET_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
 
-kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
+sudo kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
 
 kubeadm_pid=$!
 
@@ -100,11 +100,11 @@ wait $kubeadm_pid
 kubectl apply -f /calico.yaml --
 
 sha256sum /etc/kubernetes/pki/ca.crt | awk '{print $1}' >| /mnt/shared/kube-ca-hash.txt
-touch /mnt/shared/master-node-config-complete
+sudo touch /mnt/shared/master-node-config-complete
 EOF
 
 # Register startup script with systemd
-cat <<EOF > /etc/systemd/system/startup_script.service
+sudo cat <<EOF > /etc/systemd/system/startup_script.service
 [Unit]
 Description=Startup Script
 
@@ -117,7 +117,7 @@ Environment=CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 WantedBy=multi-user.target
 EOF
 
-systemctl enable startup_script.service # ln -s /../ /../
+sudo systemctl enable startup_script.service # ln -s /../ /../
 
 # Write to a file in the shared folder to indicate that the master node is finished being configured.
 touch /mnt/shared/master-node-init-complete
