@@ -2,10 +2,9 @@
 
 # K8 Master Node Setup Script
 HOSTNAME=$(hostname)
-POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+POD_NET_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
 CLUSTER_TOKEN=5998f2.95926d993a5f99cc
-
 
 apt-get update
 apt-get install -y docker.io
@@ -36,6 +35,8 @@ chmod 777 /mnt/shared
 # Add the shared folder to fstab
 sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
+# Output IP so that worker nodes can join
+echo ${POD_NET_IP_ADDRESS} >| /mnt/shared/master-ip
 
 # Initialize the master node
 #sudo kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
@@ -86,7 +87,7 @@ if [ -e "/etc/systemd/system/master-init.service" ]; then
 fi
 
 HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+POD_NET_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
 
 kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
