@@ -2,7 +2,8 @@
 
 # K8 Master Node Setup Script
 HOSTNAME=$(hostname)
-POD_NET_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
 CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
