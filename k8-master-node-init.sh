@@ -38,7 +38,7 @@ chmod 777 /mnt/shared
 sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
 # Output IP so that worker nodes can join
-echo ${POD_NET_IP_ADDRESS} >| /mnt/shared/master-ip
+echo ${HOSTONLY_IP_ADDRESS} >| /mnt/shared/master-ip
 
 # Initialize the master node
 kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
