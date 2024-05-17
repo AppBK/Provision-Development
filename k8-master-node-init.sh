@@ -41,7 +41,7 @@ sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 echo ${HOSTONLY_IP_ADDRESS} >| /mnt/shared/master-ip
 
 # Initialize the master node
-kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
+kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 > /mnt/shared/master-output 2>&1 &
 
 kubeadm_pid=$!
 echo "KUBEADM PID: ${kubeadm_pid}"
@@ -62,9 +62,9 @@ curl https://raw.githubusercontent.com/projectcalico/calico/v3.27.3/manifests/ca
 
 # Add our custom CIDR Pod Network to the Calico manifest
 sed -i "/^[[:space:]]*# - name: CALICO_IPV4POOL_CIDR/ {
-    a\
+    a\\
             - name: CALICO_IPV4POOL_CIDR
-    a\
+    a\\
               value: \"${POD_CIDR}\"
 }" calico.yaml
 
