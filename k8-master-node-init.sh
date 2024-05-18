@@ -73,6 +73,9 @@ cat <<EOF > /etc/profile.d/kube_env.sh
 export CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 EOF
 
+# Apply CNI
+kubectl apply -f /calico.yaml --
+
 # Create the startup script.
 cd /usr/local/bin
 
