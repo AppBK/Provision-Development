@@ -44,6 +44,12 @@ cat <<EOF > /etc/profile.d/kube_env.sh
 export CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 EOF
 
+# kubeadm join complains if there is an existent /etc/kubernetes/pki/ca.crt
+rm /etc/kubernetes/pki/ca.crt
+# clean up files from previous joins or attempts to join
+rm -rf /var/lib/kubelet/*
+
+
 # Join the cluster!
 kubeadm join $MASTER_NODE_IP:6443 --token $CLUSTER_TOKEN --discovery-token-ca-cert-hash $CA_HASH
 
@@ -67,6 +73,11 @@ POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
 
 MASTER_NODE_IP=$(cat /mnt/shared/master-ip)
 CA_HASH=$(cat /mnt/shared/kube-ca-hash.txt)
+
+# kubeadm join complains if there is an existent /etc/kubernetes/pki/ca.crt
+sudo rm /etc/kubernetes/pki/ca.crt
+# clean up files from previous joins or attempts to join
+sudo rm -rf /var/lib/kubelet/*
 
 kubeadm join $MASTER_NODE_IP:6443 --token $CLUSTER_TOKEN --discovery-token-ca-cert-hash $CA_HASH
 EOF
