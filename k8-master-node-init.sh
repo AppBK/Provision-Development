@@ -58,7 +58,7 @@ echo "$NAT_IP_ADDRESS $HOSTNAME" >> /etc/hosts
 # Configure iptables to see bridged traffic ########
 
 # Install kernel modules
-cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+cat <<EOF | tee /etc/modules-load.d/k8s.conf
 overlay
 br_netfilter
 EOF
@@ -67,7 +67,7 @@ modprobe overlay
 modprobe br_netfilter
 
 # sysctl params required by setup, params persist across reboots
-cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+cat <<EOF | tee /etc/sysctl.d/k8s.conf
 net.bridge.bridge-nf-call-iptables  = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward                 = 1
@@ -93,7 +93,7 @@ sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 echo ${NAT_IP_ADDRESS} >| /mnt/shared/master-ip
 
 # Initialize the master node
-kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap > /mnt/shared/master-output 2>&1 &
+kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap > /mnt/shared/master-output 2>&1 &
 
 kubeadm_pid=$!
 echo "KUBEADM PID: ${kubeadm_pid}"
@@ -146,7 +146,7 @@ HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{
 NAT_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 POD_CIDR="10.13.0.0/16" # Note that the POD CIDR is an OVERLAY network that can be assigned arbitrarily!
 
-sudo kubeadm init --control-plane-endpoint $NAT_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap &
+sudo kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap &
 
 kubeadm_pid=$!
 
