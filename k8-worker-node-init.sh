@@ -75,6 +75,7 @@ EOF
 cat <<EOF > /etc/systemd/system/startup_script.service
 [Unit]
 Description=Startup Script
+Before=worker-init.service
 
 [Service]
 Type=oneshot
