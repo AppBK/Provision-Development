@@ -23,7 +23,7 @@ systemctl enable docker.service # ln -s /../ /../
 # Add the hosts entry (All hosts)
 cp /etc/hosts /etc/hosts.backup
 sed -i "/$HOSTNAME/d" /etc/hosts
-echo "$HOSTONLY_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+echo "$POD_NET_IP_ADDRESS $HOSTNAME" >> /etc/hosts
 
 # Disable SWAP (All hosts)
 swapoff -a # Turn it off
@@ -38,10 +38,10 @@ chmod 777 /mnt/shared
 sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
 # Output IP so that worker nodes can join
-echo ${HOSTONLY_IP_ADDRESS} >| /mnt/shared/master-ip
+echo ${POD_NET_IP_ADDRESS} >| /mnt/shared/master-ip
 
 # Initialize the master node
-kubeadm init --control-plane-endpoint $HOSTONLY_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 > /mnt/shared/master-output 2>&1 &
+kubeadm init --control-plane-endpoint $POD_NET_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 > /mnt/shared/master-output 2>&1 &
 
 kubeadm_pid=$!
 echo "KUBEADM PID: ${kubeadm_pid}"
