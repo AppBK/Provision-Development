@@ -48,7 +48,7 @@ echo "KUBEADM PID: ${kubeadm_pid}"
 
 wait $kubeadm_pid
 
-sha256sum /etc/kubernetes/pki/ca.crt | awk '{print $1}' >| /mnt/shared/kube-ca-hash.txt
+openssl x509 -in /etc/kubernetes/pki/ca.crt -noout -pubkey | openssl rsa -pubin -outform DER 2>/dev/null | sha256sum | awk '{print "sha256:" $1}' >| /mnt/shared/kube-ca-hash.txt
 
 # Set the kubectl context auth to connect to the cluster(Only on Master node)
 mkdir -p /home/vagrant/.kube
@@ -99,7 +99,7 @@ wait $kubeadm_pid
 
 kubectl apply -f /calico.yaml --
 
-sha256sum /etc/kubernetes/pki/ca.crt | awk '{print $1}' >| /mnt/shared/kube-ca-hash.txt
+sudo openssl x509 -in /etc/kubernetes/pki/ca.crt -noout -pubkey | openssl rsa -pubin -outform DER 2>/dev/null | sha256sum | awk '{print "sha256:" $1}' >| /mnt/shared/kube-ca-hash.txt
 sudo touch /mnt/shared/master-node-config-complete
 EOF
 
@@ -107,6 +107,7 @@ EOF
 sudo cat <<EOF > /etc/systemd/system/startup_script.service
 [Unit]
 Description=Startup Script
+Before=master-init.service
 
 [Service]
 Type=oneshot
@@ -117,7 +118,7 @@ Environment=CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 WantedBy=multi-user.target
 EOF
 
-sudo systemctl enable startup_script.service # ln -s /../ /../
+systemctl enable startup_script.service # ln -s /../ /../
 
 # Write to a file in the shared folder to indicate that the master node is finished being configured.
 touch /mnt/shared/master-node-init-complete
