@@ -3,13 +3,36 @@
 # K8 Master Node Setup Script
 HOSTNAME=$(hostname)
 HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
+NAT_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+
+# Configure master node
+POD_CIDR="10.13.0.0/16" # Note that the POD CIDR is an OVERLAY network that can be assigned arbitrarily!
 CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
+# Install and setup CRI-O Container Runtime
+apt-get update
+apt-get install -y software-properties-common curl apt-transport-https ca-certificates
+
+curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key |
+    gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/ /" |
+    tee /etc/apt/sources.list.d/cri-o.list
 
 apt-get update
-apt-get install -y docker.io
+apt-get install -y cri-o
+
+systemctl daemon-reload
+systemctl enable crio --now
+systemctl start crio.service
+
+# Install crictl utility for container maintenance
+VERSION="v1.28.0"
+wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
+tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+rm -f crictl-$VERSION-linux-amd64.tar.gz
+
+
+# Configure apt to pull from kubernetes repo
 curl -s https://packages.cloud.google.com/apkueadmikubeadmiiiot/doc/apt-key.gpg | apt-key add -
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
 mkdir -p /etc/apt/keyrings
@@ -18,12 +41,41 @@ curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearm
 apt-get update
 apt-get install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
-systemctl enable docker.service # ln -s /../ /../
+
+# Add default ip?...
+apt-get install -y jq
+local_ip="$(ip --json addr show eth0 | jq -r '.[0].addr_info[] | select(.family == "inet") | .local')"
+cat > /etc/default/kubelet << EOF
+KUBELET_EXTRA_ARGS=--node-ip=$local_ip
+EOF
+
 
 # Add the hosts entry (All hosts)
 cp /etc/hosts /etc/hosts.backup
 sed -i "/$HOSTNAME/d" /etc/hosts
-echo "$POD_NET_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+echo "$NAT_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+
+# Configure iptables to see bridged traffic ########
+
+# Install kernel modules
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+EOF
+
+modprobe overlay
+modprobe br_netfilter
+
+# sysctl params required by setup, params persist across reboots
+cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-iptables  = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward                 = 1
+EOF
+
+# Apply sysctl params without reboot
+sysctl --system
+
 
 # Disable SWAP (All hosts)
 swapoff -a # Turn it off
@@ -38,10 +90,10 @@ chmod 777 /mnt/shared
 sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
 # Output IP so that worker nodes can join
-echo ${POD_NET_IP_ADDRESS} >| /mnt/shared/master-ip
+echo ${NAT_IP_ADDRESS} >| /mnt/shared/master-ip
 
 # Initialize the master node
-kubeadm init --control-plane-endpoint $POD_NET_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 > /mnt/shared/master-output 2>&1 &
+kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap > /mnt/shared/master-output 2>&1 &
 
 kubeadm_pid=$!
 echo "KUBEADM PID: ${kubeadm_pid}"
@@ -91,10 +143,10 @@ if [ -e "/etc/systemd/system/master-init.service" ]; then
 fi
 
 HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
+NAT_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+POD_CIDR="10.13.0.0/16" # Note that the POD CIDR is an OVERLAY network that can be assigned arbitrarily!
 
-sudo kubeadm init --control-plane-endpoint $POD_NET_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 &
+sudo kubeadm init --control-plane-endpoint $NAT_IP_ADDRESS:6443 --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap &
 
 kubeadm_pid=$!
 

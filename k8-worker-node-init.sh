@@ -3,8 +3,9 @@
 # K8 Master Node Setup Script
 HOSTNAME=$(hostname)
 HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_NET_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
+NAT_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+
+# Configure join
 CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
 
@@ -23,7 +24,30 @@ systemctl enable docker.service # ln -s /../ /../
 # Add the hosts entry (All hosts)
 cp /etc/hosts /etc/hosts.backup
 sed -i "/$HOSTNAME/d" /etc/hosts
-echo "$POD_NET_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+echo "$NAT_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+
+
+# Configure iptables to see bridged traffic ########
+
+# Install kernel modules
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+EOF
+
+modprobe overlay
+modprobe br_netfilter
+
+# sysctl params required by setup, params persist across reboots
+cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-iptables  = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward                 = 1
+EOF
+
+# Apply sysctl params without reboot
+sysctl --system
+
 
 # Disable SWAP (All hosts)
 swapoff -a # Turn it off
@@ -68,8 +92,6 @@ if [ -e "/etc/systemd/system/worker-init.service" ]; then
 fi
 
 HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_NET_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_CIDR="${POD_NET_IP_ADDRESS%.*}.0/24"
 
 MASTER_NODE_IP=$(cat /mnt/shared/master-ip)
 CA_HASH=$(cat /mnt/shared/kube-ca-hash.txt)
@@ -78,6 +100,7 @@ CA_HASH=$(cat /mnt/shared/kube-ca-hash.txt)
 sudo rm /etc/kubernetes/pki/ca.crt
 # clean up files from previous joins or attempts to join
 sudo rm -rf /var/lib/kubelet/*
+sudo rm /etc/kubernetes/kubelet.config
 
 kubeadm join $MASTER_NODE_IP:6443 --token $CLUSTER_TOKEN --discovery-token-ca-cert-hash $CA_HASH
 EOF
