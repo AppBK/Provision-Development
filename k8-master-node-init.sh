@@ -133,6 +133,7 @@ if [ -e "/etc/systemd/system/master-init.service" ]; then
   sudo /bin/rm /etc/systemd/system/multi-user.target.wants/master-init.service
   sudo /bin/rm /etc/systemd/system/master-init.service
   sudo /bin/rm /master-init.sh
+  sudo sed -i '/Before=master-init.service/d' /etc/systemd/system/startup_script.service
 fi
 
 kubectl apply -f /calico.yaml --
@@ -145,6 +146,7 @@ sudo cat <<EOF > /etc/systemd/system/startup_script.service
 [Unit]
 Description=Startup Script
 Before=master-init.service
+After=kubelet.service
 
 [Service]
 Type=oneshot
