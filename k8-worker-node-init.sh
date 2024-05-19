@@ -10,7 +10,28 @@ CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
 
 apt-get update
-apt-get install -y docker.io
+
+apt-get install -y software-properties-common curl apt-transport-https ca-certificates
+
+curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key |
+    gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/ /" |
+    tee /etc/apt/sources.list.d/cri-o.list
+
+apt-get update
+apt-get install -y cri-o
+
+systemctl daemon-reload
+systemctl enable crio --now
+systemctl start crio.service
+
+# Install crictl utility for container maintenance
+VERSION="v1.28.0"
+wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
+tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+rm -f crictl-$VERSION-linux-amd64.tar.gz
+
+
 curl -s https://packages.cloud.google.com/apkueadmikubeadmiiiot/doc/apt-key.gpg | apt-key add -
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
 mkdir -p /etc/apt/keyrings
@@ -19,7 +40,14 @@ curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearm
 apt-get update
 apt-get install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
-systemctl enable docker.service # ln -s /../ /../
+
+# Add default ip?...
+apt-get install -y jq
+local_ip="$(ip --json addr show eth0 | jq -r '.[0].addr_info[] | select(.family == "inet") | .local')"
+cat > /etc/default/kubelet << EOF
+KUBELET_EXTRA_ARGS=--node-ip=$local_ip
+EOF
+
 
 # Add the hosts entry (All hosts)
 cp /etc/hosts /etc/hosts.backup
