@@ -105,6 +105,8 @@ sudo rm /etc/kubernetes/kubelet.config
 kubeadm join $MASTER_NODE_IP:6443 --token $CLUSTER_TOKEN --discovery-token-ca-cert-hash $CA_HASH
 EOF
 
+chmod 750 startup_script.sh
+
 # Register startup script with systemd
 cat <<EOF > /etc/systemd/system/startup_script.service
 [Unit]

@@ -158,6 +158,8 @@ sudo openssl x509 -in /etc/kubernetes/pki/ca.crt -noout -pubkey | openssl rsa -p
 sudo touch /mnt/shared/master-node-config-complete
 EOF
 
+chmod 750 startup_script.sh
+
 # Register startup script with systemd
 sudo cat <<EOF > /etc/systemd/system/startup_script.service
 [Unit]
