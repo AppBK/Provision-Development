@@ -7,7 +7,6 @@ NAT_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}'
 
 # Configure master node
 POD_CIDR="10.13.0.0/16" # Note that the POD CIDR is an OVERLAY network that can be assigned arbitrarily!
-CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
 # Install and setup CRI-O Container Runtime
 apt-get update
@@ -41,6 +40,7 @@ curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearm
 apt-get update
 apt-get install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
+
 
 # Add default ip?...
 apt-get install -y jq
@@ -86,21 +86,19 @@ sed -i '/^\/swap/d' /etc/fstab # Keep it off!
 mkdir /mnt/shared
 mount -t vboxsf share /mnt/shared
 chmod 777 /mnt/shared
+
 # Add the shared folder to fstab
 sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
-# Output IP so that worker nodes can join
-echo ${NAT_IP_ADDRESS} >| /mnt/shared/master-ip
 
 # Initialize the master node
 kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap > /mnt/shared/master-output 2>&1 &
 
 kubeadm_pid=$!
-echo "KUBEADM PID: ${kubeadm_pid}"
 
 wait $kubeadm_pid
 
-openssl x509 -in /etc/kubernetes/pki/ca.crt -noout -pubkey | openssl rsa -pubin -outform DER 2>/dev/null | sha256sum | awk '{print "sha256:" $1}' >| /mnt/shared/kube-ca-hash.txt
+kubeadm token create --ttl 0 --print-join-command >| /mnt/shared/join
 
 # Set the kubectl context auth to connect to the cluster(Only on Master node)
 mkdir -p /home/vagrant/.kube
@@ -120,11 +118,6 @@ sed -i "/^[[:space:]]*# - name: CALICO_IPV4POOL_CIDR/ {
               value: \"${POD_CIDR}\"
 }" calico.yaml
 
-# Add the token to the environment (find it odd that we re-declare in the systemd script... do we actually need this?)
-cat <<EOF > /etc/profile.d/kube_env.sh
-export CLUSTER_TOKEN=5998f2.95926d993a5f99cc
-EOF
-
 # Apply CNI
 kubectl apply -f /calico.yaml --
 
@@ -142,20 +135,7 @@ if [ -e "/etc/systemd/system/master-init.service" ]; then
   sudo /bin/rm /master-init.sh
 fi
 
-HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-NAT_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-POD_CIDR="10.13.0.0/16" # Note that the POD CIDR is an OVERLAY network that can be assigned arbitrarily!
-
-sudo kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap &
-
-kubeadm_pid=$!
-
-wait $kubeadm_pid
-
 kubectl apply -f /calico.yaml --
-
-sudo openssl x509 -in /etc/kubernetes/pki/ca.crt -noout -pubkey | openssl rsa -pubin -outform DER 2>/dev/null | sha256sum | awk '{print "sha256:" $1}' >| /mnt/shared/kube-ca-hash.txt
-sudo touch /mnt/shared/master-node-config-complete
 EOF
 
 chmod 750 startup_script.sh
@@ -169,13 +149,13 @@ Before=master-init.service
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/startup_script.sh
-Environment=CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 systemctl enable startup_script.service # ln -s /../ /../
+
 
 # Write to a file in the shared folder to indicate that the master node is finished being configured.
 touch /mnt/shared/master-node-init-complete

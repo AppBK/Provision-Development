@@ -10,7 +10,6 @@ CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
 
 apt-get update
-
 apt-get install -y software-properties-common curl apt-transport-https ca-certificates
 
 curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key |
@@ -89,21 +88,10 @@ chmod 777 /mnt/shared
 # Add the shared folder to fstab
 sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
-MASTER_NODE_IP=$(cat /mnt/shared/master-ip)
-CA_HASH=$(cat /mnt/shared/kube-ca-hash.txt)
-# Add the token to the environment (find it odd that we re-declare in the systemd script... do we actually need this?)
-cat <<EOF > /etc/profile.d/kube_env.sh
-export CLUSTER_TOKEN=5998f2.95926d993a5f99cc
-EOF
-
-# kubeadm join complains if there is an existent /etc/kubernetes/pki/ca.crt
-rm /etc/kubernetes/pki/ca.crt
-# clean up files from previous joins or attempts to join
-rm -rf /var/lib/kubelet/*
-
-
 # Join the cluster!
-kubeadm join $MASTER_NODE_IP:6443 --token $CLUSTER_TOKEN --discovery-token-ca-cert-hash $CA_HASH
+JOIN=$(cat /mnt/shared/join)
+
+$JOIN # YES! This runs the command line!
 
 # Create the startup script.
 cd /usr/local/bin
@@ -119,18 +107,6 @@ if [ -e "/etc/systemd/system/worker-init.service" ]; then
   /bin/rm /worker-init.sh
 fi
 
-HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-
-MASTER_NODE_IP=$(cat /mnt/shared/master-ip)
-CA_HASH=$(cat /mnt/shared/kube-ca-hash.txt)
-
-# kubeadm join complains if there is an existent /etc/kubernetes/pki/ca.crt
-sudo rm /etc/kubernetes/pki/ca.crt
-# clean up files from previous joins or attempts to join
-sudo rm -rf /var/lib/kubelet/*
-sudo rm /etc/kubernetes/kubelet.config
-
-kubeadm join $MASTER_NODE_IP:6443 --token $CLUSTER_TOKEN --discovery-token-ca-cert-hash $CA_HASH
 EOF
 
 chmod 750 startup_script.sh
@@ -144,7 +120,6 @@ Before=worker-init.service
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/startup_script.sh
-Environment=CLUSTER_TOKEN=5998f2.95926d993a5f99cc
 
 [Install]
 WantedBy=multi-user.target
