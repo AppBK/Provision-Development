@@ -105,6 +105,7 @@ if [ -e "/etc/systemd/system/worker-init.service" ]; then
   /bin/rm /etc/systemd/system/multi-user.target.wants/worker-init.service
   /bin/rm /etc/systemd/system/worker-init.service
   /bin/rm /worker-init.sh
+  sed -i 'Before=worker-init.service/d' /etc/systemd/system/startup_script.service
 fi
 
 EOF
