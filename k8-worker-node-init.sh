@@ -51,7 +51,7 @@ EOF
 # Add the hosts entry (All hosts)
 cp /etc/hosts /etc/hosts.backup
 sed -i "/$HOSTNAME/d" /etc/hosts
-echo "$NAT_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+echo "$HOSTONLY_IP_ADDRESS $HOSTNAME" >> /etc/hosts
 
 
 # Configure iptables to see bridged traffic ########
