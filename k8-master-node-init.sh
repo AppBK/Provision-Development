@@ -2,7 +2,10 @@
 
 # K8 Master Node Setup Script
 HOSTNAME=$(hostname)
-HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+HOSTONLY_IP_ADDRESS=$(cat /mnt/vm/cluster/Notearama/shared/master_ip)
+ip addr add $HOSTONLY_IP_ADDRESS/24 dev eth0
+ip link set dev eth0 up
+
 NAT_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 
 # Configure master node
