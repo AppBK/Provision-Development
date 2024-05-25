@@ -1,0 +1,54 @@
+😄  minikube v1.33.0 on Linuxmint 21.3
+✨  Using the virtualbox driver based on user configuration
+👍  Starting "minikube" primary control-plane node in "minikube" cluster
+🔥  Creating virtualbox VM (CPUs=2, Memory=3950MB, Disk=20000MB) ...
+🎉  minikube 1.33.1 is available! Download it: https://github.com/kubernetes/minikube/releases/tag/v1.33.1
+💡  To disable this notice, run: 'minikube config set WantUpdateNotification false'
+
+🐳  Preparing Kubernetes v1.30.0 on Docker 26.0.1 ...
+    ▪ Generating certificates and keys ...
+    ▪ Booting up control plane ...
+    ▪ Configuring RBAC rules ...
+🔗  Configuring CNI (Container Networking Interface) ...
+    ▪ Using image gcr.io/k8s-minikube/storage-provisioner:v5
+[31m╭───────────────────────────────────────────────────────────────────────────────────────────────────╮[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m    You have selected "virtualbox" driver, but there are better options !                          [31m│[0m
+[31m│[0m    For better performance and support consider using a different driver:                          [31m│[0m
+[31m│[0m            - qemu2                                                                                [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m    To turn off this warning run:                                                                  [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m            $ minikube config set WantVirtualBoxDriverWarning false                                [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m    To learn more about on minikube drivers checkout https://minikube.sigs.k8s.io/docs/drivers/    [31m│[0m
+[31m│[0m    To see benchmarks checkout https://minikube.sigs.k8s.io/docs/benchmarks/cpuusage/              [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m╰───────────────────────────────────────────────────────────────────────────────────────────────────╯[0m
+🔎  Verifying Kubernetes components...
+🌟  Enabled addons: storage-provisioner, default-storageclass
+
+👍  Starting "minikube-m02" worker node in "minikube" cluster
+🔥  Creating virtualbox VM (CPUs=2, Memory=3950MB, Disk=20000MB) ...
+🌐  Found network options:
+    ▪ NO_PROXY=192.168.59.144
+🐳  Preparing Kubernetes v1.30.0 on Docker 26.0.1 ...
+    ▪ env NO_PROXY=192.168.59.144
+[31m╭───────────────────────────────────────────────────────────────────────────────────────────────────╮[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m    You have selected "virtualbox" driver, but there are better options !                          [31m│[0m
+[31m│[0m    For better performance and support consider using a different driver:                          [31m│[0m
+[31m│[0m            - qemu2                                                                                [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m    To turn off this warning run:                                                                  [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m            $ minikube config set WantVirtualBoxDriverWarning false                                [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m│[0m    To learn more about on minikube drivers checkout https://minikube.sigs.k8s.io/docs/drivers/    [31m│[0m
+[31m│[0m    To see benchmarks checkout https://minikube.sigs.k8s.io/docs/benchmarks/cpuusage/              [31m│[0m
+[31m│[0m                                                                                                   [31m│[0m
+[31m╰───────────────────────────────────────────────────────────────────────────────────────────────────╯[0m
+🔎  Verifying Kubernetes components...
+🏄  Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default

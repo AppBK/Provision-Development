@@ -53,7 +53,7 @@ EOF
 # Add the hosts entry (All hosts)
 cp /etc/hosts /etc/hosts.backup
 sed -i "/$HOSTNAME/d" /etc/hosts
-echo "$NAT_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+echo "$HOSTONLY_IP_ADDRESS $HOSTNAME" >> /etc/hosts
 
 # Configure iptables to see bridged traffic ########
 
@@ -92,7 +92,7 @@ sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
 
 # Initialize the master node
-kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap > /mnt/shared/master-output 2>&1 &
+kubeadm init --apiserver-advertise-address $HOSTONLY_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap > /mnt/shared/master-output 2>&1 &
 
 kubeadm_pid=$!
 
