@@ -93,7 +93,7 @@ sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
 
 # Initialize the master node
-kubeadm init --apiserver-advertise-address $HOSTONLY_IP_ADDRESS --pod-network-cidr=$POD_CIDR --ignore-preflight-errors=all > /mnt/shared/master-output 2>&1 &
+kubeadm init --apiserver-advertise-address $HOSTONLY_IP_ADDRESS --pod-network-cidr=$POD_CIDR --ignore-preflight-errors=all > /mnt/shared/config/master-output 2>&1 &
 
 kubeadm_pid=$!
 
@@ -138,7 +138,7 @@ if [ -e "/etc/systemd/system/master-init.service" ]; then
 fi
 
 # Compare Host-Only Ips
-source /mnt/vm/cluster/Notearama/shared/network
+source /mnt/shared/config/network
 HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 
 if [ "$KKUBE_HOSTONLY_MASTER" != "$HOSTONLY_IP_ADDRESS" ]; then
@@ -185,4 +185,4 @@ systemctl enable startup_script.service # ln -s /../ /../
 
 
 # Write to a file in the shared folder to indicate that the master node is finished being configured.
-touch /mnt/shared/master-node-init-complete
+touch /mnt/shared/config/master-node-init-complete
