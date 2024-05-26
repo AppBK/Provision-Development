@@ -2,11 +2,9 @@
 
 # K8 Master Node Setup Script
 HOSTNAME=$(hostname)
-# HOSTONLY_IP_ADDRESS=$(cat /mnt/vm/cluster/Notearama/shared/master_ip)
-# ip addr add $HOSTONLY_IP_ADDRESS/24 dev eth0
-# ip link set dev eth0 up
-#HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-NAT_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+sed -i "s/^export KKUBE_HOSTONLY_MASTER=.*$/export KKUBE_HOSTONLY_MASTER=$HOSTONLY_IP_ADDRESS/" /mnt/shared/config/network
+NAT_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 
 # Configure master node
 POD_CIDR="10.13.0.0/16" # Note that the POD CIDR is an OVERLAY network that can be assigned arbitrarily!
@@ -56,7 +54,7 @@ EOF
 # Add the hosts entry (All hosts)
 cp /etc/hosts /etc/hosts.backup
 sed -i "/$HOSTNAME/d" /etc/hosts
-echo "$NAT_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+echo "$HOSTONLY_IP_ADDRESS $HOSTNAME" >> /etc/hosts
 
 # Configure iptables to see bridged traffic ########
 
@@ -95,19 +93,19 @@ sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
 
 # Initialize the master node
-kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap > /mnt/shared/master-output 2>&1 &
+kubeadm init --apiserver-advertise-address $HOSTONLY_IP_ADDRESS --pod-network-cidr=$POD_CIDR --ignore-preflight-errors=all > /mnt/shared/master-output 2>&1 &
 
 kubeadm_pid=$!
 
 wait $kubeadm_pid
 
-kubeadm token create --ttl 0 --print-join-command >| /mnt/shared/join
+kubeadm token create --ttl 0 --print-join-command >| /mnt/shared/config/join
 
 # Set the kubectl context auth to connect to the cluster(Only on Master node)
 mkdir -p /home/vagrant/.kube
 cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
 chown 1000:1000 /home/vagrant/.kube/config # kubectl will find the apiserver ip address in this file
-cat /etc/kubernetes/admin.conf >| /mnt/shared/kubeconfig
+cat /etc/kubernetes/admin.conf >| /mnt/shared/config/kkubeconfig
 
 
 # Configure the Pod Network Plugin (Calico)
@@ -139,7 +137,31 @@ if [ -e "/etc/systemd/system/master-init.service" ]; then
   sudo sed -i '/Before=master-init.service/d' /etc/systemd/system/startup_script.service
 fi
 
-kubectl apply -f /calico.yaml --
+# Compare Host-Only Ips
+source /mnt/vm/cluster/Notearama/shared/network
+HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+
+if [ "$KKUBE_HOSTONLY_MASTER" != "$HOSTONLY_IP_ADDRESS" ]; then
+  sed -i "s/^export KKUBE_HOSTONLY_MASTER=.*$/export KKUBE_HOSTONLY_MASTER=$HOSTONLY_IP_ADDRESS/" /mnt/shared/config/network
+
+  sudo kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token-ttl 0 --ignore-preflight-errors=all > /mnt/shared/master-output 2>&1 &
+
+  kubeadm_pid=$!
+
+  wait $kubeadm_pid
+
+  sudo kubeadm token create --ttl 0 --print-join-command >| /mnt/shared/config/join
+
+  # Set the kubectl context auth to connect to the cluster(Only on Master node)
+  sudo cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
+  sudo chown 1000:1000 /home/vagrant/.kube/config # kubectl will find the apiserver ip address in this file
+  sudo cat /etc/kubernetes/admin.conf >| /mnt/shared/config/kkubeconfig
+  ./mnt/shared/update_config.sh
+
+  kubectl apply -f /calico.yaml --
+else
+  kubectl apply -f /calico.yaml --
+fi
 EOF
 
 chmod 750 startup_script.sh
