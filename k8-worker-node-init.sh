@@ -5,9 +5,6 @@ HOSTNAME=$(hostname)
 HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 NAT_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 
-# Configure join
-CLUSTER_TOKEN=5998f2.95926d993a5f99cc
-
 
 apt-get update
 apt-get install -y software-properties-common curl apt-transport-https ca-certificates
@@ -89,9 +86,20 @@ chmod 777 /mnt/shared
 sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
 # Join the cluster!
-JOIN=$(cat /mnt/shared/join)
+JOIN=$(cat /mnt/shared/config/join)
 
-$JOIN # YES! This runs the command line!
+if [ ! -f "/mnt/shared/config/join-prev" ]; then
+  echo "$JOIN" >| /mnt/shared/config/join-prev
+  $JOIN # YES! This runs the command line!
+else
+  PREV_JOIN=$(cat /mnt/shared/config/join-prev)
+  if [ "$PREV_JOIN" != "$JOIN" ]; then
+    cp /mnt/shared/config/join /mnt/shared/config/join-prev
+    $JOIN # YES! This runs the command line!
+  else
+    $JOIN # YES! This runs the command line!
+  fi
+fi
 
 # Create the startup script.
 cd /usr/local/bin
@@ -108,6 +116,13 @@ if [ -e "/etc/systemd/system/worker-init.service" ]; then
   sed -i 'Before=worker-init.service/d' /etc/systemd/system/startup_script.service
 fi
 
+JOIN=$(cat /mnt/shared/config/join)
+PREV_JOIN=$(cat /mnt/shared/config/join-prev)
+if [ "$PREV_JOIN" != "$JOIN" ]; then
+  cp /mnt/shared/config/join /mnt/shared/config/join-prev
+  $JOIN # YES! This runs the command line!
+fi
+# kubelet will automatically join the cluster!
 EOF
 
 chmod 750 startup_script.sh
