@@ -5,8 +5,8 @@ HOSTNAME=$(hostname)
 # HOSTONLY_IP_ADDRESS=$(cat /mnt/vm/cluster/Notearama/shared/master_ip)
 # ip addr add $HOSTONLY_IP_ADDRESS/24 dev eth0
 # ip link set dev eth0 up
-HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
-NAT_IP_ADDRESS=$(ip addr show eth1 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+#HOSTONLY_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
+NAT_IP_ADDRESS=$(ip addr show eth0 | grep -oE 'inet ([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $2}')
 
 # Configure master node
 POD_CIDR="10.13.0.0/16" # Note that the POD CIDR is an OVERLAY network that can be assigned arbitrarily!
@@ -56,7 +56,7 @@ EOF
 # Add the hosts entry (All hosts)
 cp /etc/hosts /etc/hosts.backup
 sed -i "/$HOSTNAME/d" /etc/hosts
-echo "$HOSTONLY_IP_ADDRESS $HOSTNAME" >> /etc/hosts
+echo "$NAT_IP_ADDRESS $HOSTNAME" >> /etc/hosts
 
 # Configure iptables to see bridged traffic ########
 
@@ -95,7 +95,7 @@ sed -i '$ a share    /mnt/shared    vboxsf    defaults    0    0' /etc/fstab
 
 
 # Initialize the master node
-kubeadm init --apiserver-advertise-address $HOSTONLY_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap > /mnt/shared/master-output 2>&1 &
+kubeadm init --apiserver-advertise-address $NAT_IP_ADDRESS --pod-network-cidr=$POD_CIDR --token $CLUSTER_TOKEN --token-ttl 0 --ignore-preflight-errors Swap > /mnt/shared/master-output 2>&1 &
 
 kubeadm_pid=$!
 
