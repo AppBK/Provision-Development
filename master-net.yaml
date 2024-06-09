@@ -21,14 +21,4 @@ network:
           routes:
           -   to: default
               via: 192.168.155.1
-        enp0s10:
-          addresses:
-            - 10.0.155.10/24
-          nameservers:
-            addresses:
-              - 8.8.8.8
-              - 8.8.4.4
-            search: []
-          routes:
-          -   to: default
-              via: 10.0.155.1
+
