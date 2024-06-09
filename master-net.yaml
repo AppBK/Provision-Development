@@ -18,7 +18,3 @@ network:
               - 8.8.8.8
               - 8.8.4.4
             search: []
-          routes:
-          -   to: default
-              via: 192.168.155.1
-
